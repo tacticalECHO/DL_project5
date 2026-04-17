@@ -1,0 +1,9 @@
+# Dataset files and folders
+CelebAMask-HQ/
+dataset/
+
+
+# Local dataset archives
+*.zip
+data/fixed_masks*.pt
+data/fixed_masks_val*.pt
