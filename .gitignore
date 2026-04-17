@@ -1,6 +1,7 @@
 # Dataset files and folders
 CelebAMask-HQ/
 dataset/
+.vscode/
 
 
 # Local dataset archives
