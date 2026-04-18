@@ -86,14 +86,14 @@ def evaluate_regime(
 
     n = len(per_image_rows)
     summary = {
-        "method":    method_name,
-        "regime":    regime,
-        "n_images":  n,
-        "mse":       sum(r["mse"]   for r in per_image_rows) / n,
-        "ssim":      sum(r["ssim"]  for r in per_image_rows) / n,
-        "psnr":      sum(r["psnr"]  for r in per_image_rows) / n,
-        "lpips":     sum(r["lpips"] for r in per_image_rows) / n,
-        "fid":       fid_value,
+        "method": method_name,
+        "regime": regime,
+        "n_images": n,
+        "mse": sum(r["mse"]   for r in per_image_rows) / n,
+        "ssim": sum(r["ssim"]  for r in per_image_rows) / n,
+        "psnr": sum(r["psnr"]  for r in per_image_rows) / n,
+        "lpips": sum(r["lpips"] for r in per_image_rows) / n,
+        "fid": fid_value,
     }
 
     return per_image_rows, summary
@@ -101,9 +101,8 @@ def evaluate_regime(
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ckpt",       type=str, required=True,
-                        help="Path to checkpoint, e.g. checkpoints/run_01/best.pt")
-    parser.add_argument("--run-name",   type=str, default="run_01")
+    parser.add_argument("--ckpt", type=str, required=True)
+    parser.add_argument("--run-name", type=str, default="run_01")
     parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--num-workers", type=int, default=2)
     parser.add_argument("--method-name", type=str, default="cvae")
@@ -114,16 +113,15 @@ def main():
     print(f"Device: {device}")
 
 
-
     print(f"Loading checkpoint: {args.ckpt}")
     ckpt = torch.load(args.ckpt, map_location=device, weights_only=False)
     latent_dim = ckpt["args"].get("latent_dim", 256)
     model = CVAE(latent_dim=latent_dim).to(device)
     model.load_state_dict(ckpt["model_state_dict"])
     model.eval()
-    print(f"  loaded epoch {ckpt['epoch']}, val_l1={ckpt['val_l1']:.4f}")
+    print(f"loaded epoch {ckpt['epoch']}, val_l1={ckpt['val_l1']:.4f}")
 
-    print("Loading LPIPS (AlexNet)...")
+    print("Loading LPIPS...")
     lpips_fn = lpips.LPIPS(net="alex").to(device)
     lpips_fn.eval()
 
@@ -166,17 +164,17 @@ def main():
         )
         writer.writeheader()
         writer.writerows(all_per_image)
-    print(f"\n[OK] per-image CSV → {csv_path}  ({len(all_per_image)} rows)")
+    print(f"\nPer-image CSV to {csv_path}  ({len(all_per_image)} rows)")
 
     json_path = out_dir / f"{args.method_name}_summary.json"
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump({
-            "method":   args.method_name,
-            "ckpt":     args.ckpt,
-            "epoch":    ckpt["epoch"],
+            "method": args.method_name,
+            "ckpt": args.ckpt,
+            "epoch": ckpt["epoch"],
             "results":  all_summary,
         }, f, indent=2)
-    print(f"[OK] summary JSON → {json_path}")
+    print(f"Summary JSON to {json_path}")
 
     print("\n")
     print("Summary:")

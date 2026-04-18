@@ -65,10 +65,10 @@ def train_one_epoch(
         with autocast("cuda"):
             x_hat, (mu_q, logvar_q, mu_p, logvar_p) = model(gt, masked, mask)
 
-        x_hat    = x_hat.float()
-        mu_q     = mu_q.float()
+        x_hat = x_hat.float()
+        mu_q = mu_q.float()
         logvar_q = logvar_q.float()
-        mu_p     = mu_p.float()
+        mu_p = mu_p.float()
         logvar_p = logvar_p.float()
 
         total, log = cvae_loss(
@@ -147,26 +147,22 @@ def main():
     parser.add_argument("--lr",           type=float, default=1e-4)
     parser.add_argument("--latent-dim",   type=int, default=256)
     parser.add_argument("--warmup-epochs", type=int, default=10)
-    parser.add_argument("--subset",       type=int, default=-1,
-                        help="Use only first N training images (-1 = all)")
+    parser.add_argument("--subset",       type=int, default=-1)
     parser.add_argument("--num-workers",  type=int, default=4)
     parser.add_argument("--seed",         type=int, default=42)
     parser.add_argument("--log-every",    type=int, default=50)
-    parser.add_argument("--max-beta",     type=float, default=1.0,
-                        help="Max beta after warmup (v1.3 default 1.0)")
+    parser.add_argument("--max-beta",     type=float, default=1.0)
     args = parser.parse_args()
 
     set_seed(args.seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    # Out dir
     ckpt_dir = Path("checkpoints") / args.run_name
     vis_dir = ckpt_dir / "vis"
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     vis_dir.mkdir(parents=True, exist_ok=True)
 
-    # Dataset
     train_paths = load_paths("./data/train_paths.txt")
     if args.subset > 0:
         train_paths = train_paths[:args.subset]
@@ -201,6 +197,7 @@ def main():
     scaler = GradScaler("cuda")
 
     # Training loop
+
     best_val_l1 = float("inf")
     log_file = ckpt_dir / "train.log"
     log_file.write_text(
@@ -250,9 +247,9 @@ def main():
         if val_metrics["val_l1"] < best_val_l1:
             best_val_l1 = val_metrics["val_l1"]
             torch.save(ckpt, ckpt_dir / "best.pt")
-            print(f"  → new best val_l1={best_val_l1:.4f}, saved best.pt")
+            print(f"new best val_l1={best_val_l1:.4f}, saved best.pt")
 
-    print(f"\nTraining done. Best val_l1: {best_val_l1:.4f}")
+    print(f"\nTraining done.")
 
 if __name__ == "__main__":
     main()

@@ -73,10 +73,10 @@ def make_pd_plane(summary_json_path, save_path):
     results = data["results"]
 
     regimes = [r["regime"] for r in results]
-    mse = [r["mse"]    for r in results]
-    ssim = [r["ssim"]   for r in results]
-    lpips_v = [r["lpips"]  for r in results]
-    fid = [r["fid"]    for r in results]
+    mse = [r["mse"] for r in results]
+    ssim = [r["ssim"] for r in results]
+    lpips_v = [r["lpips"] for r in results]
+    fid = [r["fid"] for r in results]
 
     one_minus_ssim = [1 - s for s in ssim]
 
@@ -108,18 +108,17 @@ def make_pd_plane(summary_json_path, save_path):
     save_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(save_path, dpi=150, bbox_inches="tight")
     plt.close()
-    print(f"  → saved {save_path}")
+    print(f"Saved {save_path}")
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ckpt",         type=str, required=True)
+    parser.add_argument("--ckpt", type=str, required=True)
     parser.add_argument("--summary-json", type=str, default="reports/cvae_summary.json")
-    parser.add_argument("--output-dir",   type=str, default="reports")
-    parser.add_argument("--n-images",     type=int, default=4)
-    parser.add_argument("--n-samples",    type=int, default=6)
-    parser.add_argument("--regime",       type=str, default="large",
-                        help="Mask regime for pluralistic grid (large shows best diversity)")
+    parser.add_argument("--output-dir", type=str, default="reports")
+    parser.add_argument("--n-images", type=int, default=4)
+    parser.add_argument("--n-samples", type=int, default=6)
+    parser.add_argument("--regime", type=str, default="large")
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
