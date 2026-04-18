@@ -2,7 +2,7 @@
 Inference interface for the trained partial-conv model.
 
 Usage:
-    from models.inpaint import load_model, inpaint
+    from models.pconv.inpaint import load_model, inpaint
 
     model = load_model('./checkpoints/pconv/best_model.pt', device='cuda')
     result = inpaint(model, masked_image, hole_mask)
@@ -75,8 +75,8 @@ def inpaint(model, masked_image, hole_mask):
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("usage: python models/inpaint.py <checkpoint_path>")
-        print("example: python models/inpaint.py ./checkpoints/pconv/best_model.pt")
+        print("usage: python models/pconv/inpaint.py <checkpoint_path>")
+        print("example: python models/pconv/inpaint.py ./checkpoints/pconv/best_model.pt")
         sys.exit(1)
 
     ckpt_path = sys.argv[1]

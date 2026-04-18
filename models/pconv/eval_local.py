@@ -5,8 +5,8 @@ Computes MSE / SSIM / LPIPS on the test set under three mask regimes
 (small, medium, large), using the fixed test masks from data/.
 
 Run from the repo root:
-  python models/eval_local.py                 # full test set (~10 min)
-  python models/eval_local.py --n_eval 50     # quick sanity check
+  python models/pconv/eval_local.py                 # full test set (~10 min)
+  python models/pconv/eval_local.py --n_eval 50     # quick sanity check
 """
 import os
 import sys
@@ -24,7 +24,7 @@ from skimage.metrics import structural_similarity as ssim_fn
 import lpips
 
 from utils.dataset import FixedMaskInpaintingDataset
-from models.inpaint import load_model, inpaint
+from models.pconv.inpaint import load_model, inpaint
 
 
 def load_paths(txt_path):

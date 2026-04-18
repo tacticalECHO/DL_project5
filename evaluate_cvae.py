@@ -8,15 +8,15 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
-from models import InpaintingGenerator, compose_inpainting
+from models.cvae.model import CVAE
 from utils.dataset import FixedMaskInpaintingDataset
 from utils.io import load_paths
 from utils.metrics import build_perceptual_metrics, mse_metric, psnr_metric, save_image_tensor, ssim_metric
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Evaluate a trained GAN inpainting model.")
-    parser.add_argument("--checkpoint", type=str, default="outputs/gan/best.pt")
+    parser = argparse.ArgumentParser(description="Evaluate the CVAE inpainting model.")
+    parser.add_argument("--checkpoint", type=str, default="outputs/cvae/best.pt")
     parser.add_argument("--split-paths", type=str, default="data/test_paths.txt")
     parser.add_argument("--small-mask-path", type=str, default="data/fixed_masks_small.pt")
     parser.add_argument("--medium-mask-path", type=str, default="data/fixed_masks_medium.pt")
@@ -26,15 +26,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--save-samples-dir", type=str, default="")
-    parser.add_argument("--save-csv-dir", type=str, default="outputs/gan/eval_csv")
-    parser.add_argument("--save-json-path", type=str, default="outputs/gan/eval_summary.json")
+    parser.add_argument("--save-csv-dir", type=str, default="outputs/cvae/eval_csv")
+    parser.add_argument("--save-json-path", type=str, default="outputs/cvae/eval_summary.json")
     parser.add_argument("--max-save-samples", type=int, default=16)
     return parser.parse_args()
 
 
+def compose_inpainting(prediction: torch.Tensor, masked: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    return prediction * mask + masked * (1.0 - mask)
+
+
 @torch.no_grad()
 def evaluate_regime(
-    generator: InpaintingGenerator,
+    model: CVAE,
     loader: DataLoader,
     device: torch.device,
     sample_dir: Path | None,
@@ -54,8 +58,8 @@ def evaluate_regime(
         mask = batch["mask"].to(device)
         masked = batch["masked"].to(device)
 
-        pred = generator(torch.cat([masked, mask], dim=1))
-        completed = compose_inpainting(pred, masked, mask)
+        pred = model.sample(masked, mask, n_samples=1).squeeze(0)
+        completed = compose_inpainting(pred.clamp(0.0, 1.0), masked, mask)
         batch_size = gt.size(0)
 
         total_mse += mse_metric(completed, gt).item() * batch_size
@@ -71,7 +75,6 @@ def evaluate_regime(
         for i in range(batch_size):
             gt_i = gt[i : i + 1]
             mask_i = mask[i : i + 1]
-            masked_i = masked[i : i + 1]
             completed_i = completed[i : i + 1]
             lpips_i = metric_bundle.lpips(completed_i * 2.0 - 1.0, gt_i * 2.0 - 1.0)
             per_image_rows.append(
@@ -128,10 +131,11 @@ def main() -> None:
     args = parse_args()
     device = torch.device(args.device)
 
-    checkpoint = torch.load(args.checkpoint, map_location=device)
-    generator = InpaintingGenerator().to(device)
-    generator.load_state_dict(checkpoint["generator"])
-    generator.eval()
+    checkpoint = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    latent_dim = checkpoint["args"].get("latent_dim", 256)
+    model = CVAE(latent_dim=latent_dim).to(device)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    model.eval()
 
     loaders = {
         "small": build_loader(args.split_paths, args.small_mask_path, args.image_size, args.batch_size, args.num_workers),
@@ -145,7 +149,7 @@ def main() -> None:
     all_rows: list[dict[str, float | str]] = []
     for regime, loader in loaders.items():
         sample_dir = save_root / regime if save_root is not None else None
-        regime_metrics, regime_rows = evaluate_regime(generator, loader, device, sample_dir, args.max_save_samples)
+        regime_metrics, regime_rows = evaluate_regime(model, loader, device, sample_dir, args.max_save_samples)
         results[regime] = regime_metrics
         for row in regime_rows:
             row["regime"] = regime
@@ -155,7 +159,12 @@ def main() -> None:
 
     report = {
         "checkpoint": args.checkpoint,
-        "conditioning_strategy": checkpoint.get("conditioning_strategy"),
+        "method": "conditional_vae",
+        "conditioning_strategy": {
+            "generator_input": "(masked_image, mask)",
+            "reason": "The decoder and prior are both conditioned on the masked image and binary mask so the"
+            " latent variable models plausible hole content while preserving observed context.",
+        },
         "perception_metric_note": "LPIPS is reported as the extra perception metric because it better tracks"
         " perceptual similarity than pixel-wise errors.",
         "per_image_csv_note": "Per-image CSVs include MSE, SSIM, PSNR, and LPIPS. FID is only reported at the"

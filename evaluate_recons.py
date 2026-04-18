@@ -27,6 +27,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--save-samples-dir", type=str, default="")
     parser.add_argument("--save-csv-dir", type=str, default="outputs/rcon/eval_csv")
+    parser.add_argument("--save-json-path", type=str, default="outputs/rcon/eval_summary.json")
     parser.add_argument("--max-save-samples", type=int, default=16)
     return parser.parse_args()
 
@@ -164,6 +165,11 @@ def main() -> None:
     if csv_root is not None:
         save_per_image_csv(csv_root / "all_regimes_per_image_metrics.csv", all_rows)
         report["per_image_csv_dir"] = str(csv_root)
+    if args.save_json_path:
+        json_path = Path(args.save_json_path)
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+        report["summary_json_path"] = str(json_path)
     print(json.dumps(report, indent=2))
 
 
