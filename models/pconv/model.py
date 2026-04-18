@@ -12,9 +12,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 try:
-    from models.partial_conv import PartialConv2d
+    from models.pconv.partial_conv import PartialConv2d
 except ImportError:
-    from partial_conv import PartialConv2d
+    from .partial_conv import PartialConv2d
 
 
 class PCBActiv(nn.Module):

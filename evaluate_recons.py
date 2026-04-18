@@ -8,7 +8,7 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
-from models.inpaint import inpaint, load_model
+from models.pconv.inpaint import inpaint, load_model
 from utils.dataset import FixedMaskInpaintingDataset
 from utils.io import load_paths
 from utils.metrics import build_perceptual_metrics, mse_metric, psnr_metric, save_image_tensor, ssim_metric

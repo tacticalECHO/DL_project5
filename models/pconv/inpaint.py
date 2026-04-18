@@ -19,9 +19,9 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
 
 try:
-    from models.model import PConvUNet
+    from models.pconv.model import PConvUNet
 except ImportError:
-    from model import PConvUNet
+    from .model import PConvUNet
 
 
 def load_model(checkpoint_path, device='cuda'):
