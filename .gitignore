@@ -7,3 +7,17 @@ dataset/
 *.zip
 data/fixed_masks*.pt
 data/fixed_masks_val*.pt
+# Model checkpoints and training outputs
+checkpoints/
+logs/
+samples/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# IDE
+.vscode/
+.idea/
+
+CelebAMask-HQ
