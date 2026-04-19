@@ -1,4 +1,5 @@
 from __future__ import annotations
+import sys as _sys; from pathlib import Path as _Path; _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
 
 import argparse
 import csv
@@ -8,15 +9,15 @@ from pathlib import Path
 import torch
 from torch.utils.data import DataLoader
 
-from models.pconv.inpaint import inpaint, load_model
+from models import InpaintingGenerator, compose_inpainting
 from utils.dataset import FixedMaskInpaintingDataset
 from utils.io import load_paths
 from utils.metrics import build_perceptual_metrics, mse_metric, psnr_metric, save_image_tensor, ssim_metric
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Evaluate the reconstruction-based inpainting model.")
-    parser.add_argument("--checkpoint", type=str, default="outputs/rcon/best_model.pt")
+    parser = argparse.ArgumentParser(description="Evaluate a trained GAN inpainting model.")
+    parser.add_argument("--checkpoint", type=str, default="outputs/gan/best.pt")
     parser.add_argument("--split-paths", type=str, default="data/test_paths.txt")
     parser.add_argument("--small-mask-path", type=str, default="data/fixed_masks_small.pt")
     parser.add_argument("--medium-mask-path", type=str, default="data/fixed_masks_medium.pt")
@@ -26,15 +27,15 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--num-workers", type=int, default=0)
     parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--save-samples-dir", type=str, default="")
-    parser.add_argument("--save-csv-dir", type=str, default="outputs/rcon/eval_csv")
-    parser.add_argument("--save-json-path", type=str, default="outputs/rcon/eval_summary.json")
+    parser.add_argument("--save-csv-dir", type=str, default="outputs/gan/eval_csv")
+    parser.add_argument("--save-json-path", type=str, default="outputs/gan/eval_summary.json")
     parser.add_argument("--max-save-samples", type=int, default=16)
     return parser.parse_args()
 
 
 @torch.no_grad()
 def evaluate_regime(
-    model: torch.nn.Module,
+    generator: InpaintingGenerator,
     loader: DataLoader,
     device: torch.device,
     sample_dir: Path | None,
@@ -54,7 +55,8 @@ def evaluate_regime(
         mask = batch["mask"].to(device)
         masked = batch["masked"].to(device)
 
-        completed = inpaint(model, masked, mask)
+        pred = generator(torch.cat([masked, mask], dim=1))
+        completed = compose_inpainting(pred, masked, mask)
         batch_size = gt.size(0)
 
         total_mse += mse_metric(completed, gt).item() * batch_size
@@ -70,6 +72,7 @@ def evaluate_regime(
         for i in range(batch_size):
             gt_i = gt[i : i + 1]
             mask_i = mask[i : i + 1]
+            masked_i = masked[i : i + 1]
             completed_i = completed[i : i + 1]
             lpips_i = metric_bundle.lpips(completed_i * 2.0 - 1.0, gt_i * 2.0 - 1.0)
             per_image_rows.append(
@@ -126,7 +129,10 @@ def main() -> None:
     args = parse_args()
     device = torch.device(args.device)
 
-    model = load_model(args.checkpoint, device=device)
+    checkpoint = torch.load(args.checkpoint, map_location=device)
+    generator = InpaintingGenerator().to(device)
+    generator.load_state_dict(checkpoint["generator"])
+    generator.eval()
 
     loaders = {
         "small": build_loader(args.split_paths, args.small_mask_path, args.image_size, args.batch_size, args.num_workers),
@@ -140,7 +146,7 @@ def main() -> None:
     all_rows: list[dict[str, float | str]] = []
     for regime, loader in loaders.items():
         sample_dir = save_root / regime if save_root is not None else None
-        regime_metrics, regime_rows = evaluate_regime(model, loader, device, sample_dir, args.max_save_samples)
+        regime_metrics, regime_rows = evaluate_regime(generator, loader, device, sample_dir, args.max_save_samples)
         results[regime] = regime_metrics
         for row in regime_rows:
             row["regime"] = regime
@@ -150,12 +156,7 @@ def main() -> None:
 
     report = {
         "checkpoint": args.checkpoint,
-        "method": "reconstruction_based_partial_conv",
-        "conditioning_strategy": {
-            "generator_input": "(masked_image, mask)",
-            "reason": "Partial convolutions explicitly use the binary hole mask to distinguish missing"
-            " pixels from observed context, which matches the training objective and evaluation protocol.",
-        },
+        "conditioning_strategy": checkpoint.get("conditioning_strategy"),
         "perception_metric_note": "LPIPS is reported as the extra perception metric because it better tracks"
         " perceptual similarity than pixel-wise errors.",
         "per_image_csv_note": "Per-image CSVs include MSE, SSIM, PSNR, and LPIPS. FID is only reported at the"

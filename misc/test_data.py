@@ -1,3 +1,7 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 import matplotlib.pyplot as plt
 from utils.dataset import InpaintingDataset
 small_dataset = InpaintingDataset(image_paths=["./CelebAMask-HQ/CelebA-HQ-img"], image_size=128, regime="small")

@@ -1,14 +1,13 @@
-# Dataset files and folders
+# Claude Code
+.claude/
+
+# Datasets
 CelebAMask-HQ/
 dataset/
-.vscode/
-checkpoints/
-
-
-# Local dataset archives
 *.zip
 data/fixed_masks*.pt
 data/fixed_masks_val*.pt
+
 # Model checkpoints and training outputs
 checkpoints/
 logs/
@@ -21,5 +20,3 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
-
-CelebAMask-HQ
